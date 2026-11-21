@@ -27,8 +27,10 @@ It supports relaying to other compatible scrobblers, so you can try it safely wi
 On the Rewind page, select **Weekly** to see your latest completed week.
 
 - 📅 **Browse past weeks.** Each week runs Friday through Thursday.
-- 🎧 **See your favorites.** Find your most-played artists, albums, and tracks.
-- 📊 **Compare with the previous week.** See plays side by side for each weekday and how the weekly total changed.
+- 🎧 **Top listens.** See your most-played artists, albums, and tracks.
+- 📊 **Daily plays.** Compare each weekday and the weekly total with the previous week.
+- 🕒 **Listening Clock.** Explore plays by hour of day and see when you listened most.
+- 📝 **Quick Facts.** See your known listening time, average plays per day, and busiest day.
 
 ## Features
 
