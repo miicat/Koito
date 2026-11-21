@@ -441,6 +441,13 @@ type NowPlaying = {
   currently_playing: boolean;
   track: Track;
 };
+type WeeklyRewind = {
+  start: string;
+  starts_at: string;
+  latest_start: string;
+  days: { date: string; plays: number; previous_plays: number }[];
+  hourly_plays: number[];
+};
 type RewindStats = {
   title: string;
   top_artists: Ranked<Artist>[];
@@ -456,6 +463,7 @@ type RewindStats = {
   new_tracks: number;
   new_albums: number;
   new_artists: number;
+  weekly?: WeeklyRewind;
 };
 
 export type {
@@ -480,5 +488,6 @@ export type {
   NowPlaying,
   Stats,
   RewindStats,
+  WeeklyRewind,
   ImageList,
 };

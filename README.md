@@ -20,6 +20,16 @@ It supports relaying to other compatible scrobblers, so you can try it safely wi
 > scrobbler. This is what I've been doing for the entire development of this app and it hasn't failed me once. Or, you can always use something
 > like [multi-scrobbler](https://github.com/FoxxMD/multi-scrobbler).
 
+## What this fork adds
+
+### Weekly Rewind
+
+On the Rewind page, select **Weekly** to see your latest completed week.
+
+- 📅 **Browse past weeks.** Each week runs Friday through Thursday.
+- 🎧 **See your favorites.** Find your most-played artists, albums, and tracks.
+- 📊 **Compare with the previous week.** See plays side by side for each weekday and how the weekly total changed.
+
 ## Features
 
 - ⚡ More performant than similar software

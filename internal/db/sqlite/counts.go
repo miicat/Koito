@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gabehf/koito/internal/db"
 )
@@ -15,6 +16,34 @@ func (s *Sqlite) CountListens(ctx context.Context, timeframe db.Timeframe) (int6
 		`SELECT COUNT(*) FROM listens WHERE listened_at BETWEEN ? AND ?`,
 		t1.Unix(), t2.Unix()).Scan(&count)
 	return count, err
+}
+
+func (s *Sqlite) CountListensByHour(ctx context.Context, timeframe db.Timeframe) ([24]int64, error) {
+	from, to := db.TimeframeToTimeRange(timeframe)
+	location := timeframe.Timezone
+	if location == nil {
+		location = time.UTC
+	}
+	var counts [24]int64
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT listened_at FROM listens WHERE listened_at BETWEEN ? AND ?`,
+		from.Unix(), to.Unix())
+	if err != nil {
+		return counts, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var timestamp int64
+		if err := rows.Scan(&timestamp); err != nil {
+			return [24]int64{}, err
+		}
+		// Convert each timestamp before grouping so fractional UTC offsets and
+		// both occurrences of a repeated local hour are counted correctly.
+		hour := time.Unix(timestamp, 0).In(location).Hour()
+		counts[hour]++
+	}
+	return counts, rows.Err()
 }
 
 func (s *Sqlite) CountListensToItem(ctx context.Context, opts db.TimeListenedOpts) (int64, error) {

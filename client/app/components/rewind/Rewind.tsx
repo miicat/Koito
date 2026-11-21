@@ -1,6 +1,8 @@
 import { type RewindStats } from "api/api";
 import RewindStatText from "./RewindStatText";
 import { RewindTopItem } from "./RewindTopItem";
+import WeeklyListeningDetails from "./WeeklyListeningDetails";
+import WeeklyPlaysChart from "./WeeklyPlaysChart";
 
 interface Props {
   stats: RewindStats;
@@ -8,18 +10,21 @@ interface Props {
 }
 
 export default function Rewind(props: Props) {
-  const artistimg = props.stats.top_artists[0]?.item.image;
-  const albumimg = props.stats.top_albums[0]?.item.image;
-  const trackimg = props.stats.top_tracks[0]?.item.image;
-  if (
-    !props.stats.top_artists[0] ||
-    !props.stats.top_albums[0] ||
-    !props.stats.top_tracks[0]
-  ) {
+  const {
+    weekly,
+    top_artists: artists,
+    top_albums: albums,
+    top_tracks: tracks,
+  } = props.stats;
+  if (!weekly && (!artists[0] || !albums[0] || !tracks[0])) {
     return <p>Not enough data exists to create a Rewind for this period :(</p>;
   }
   return (
-    <div className="flex flex-col gap-7 card pt-4 sm:pt-6 pb-8 sm:pb-12 px-4 sm:px-8 min-w-[350px]">
+    <div
+      className={`flex flex-col gap-7 card pt-4 sm:pt-6 pb-8 sm:pb-12 px-4 sm:px-8 ${
+        weekly ? "w-full min-w-0" : "min-w-[350px]"
+      }`}
+    >
       <div className="w-full text-start shrink-0 sm:ml-6">
         <span
           className="
@@ -40,35 +45,52 @@ export default function Rewind(props: Props) {
           <h5 className="mb-2">{props.stats.title}</h5>
         </span>
       </div>
+      {weekly && (
+        <>
+          <WeeklyPlaysChart days={weekly.days} />
+          <WeeklyListeningDetails
+            weekly={weekly}
+            minutesListened={props.stats.minutes_listened}
+            avgPlaysPerDay={props.stats.avg_plays_per_day}
+          />
+        </>
+      )}
+      {weekly && !artists.length && !albums.length && !tracks.length && (
+        <p className="color-fg-secondary">
+          No top artists, albums, or tracks this week.
+        </p>
+      )}
       <RewindTopItem
         title="Top Artist"
-        imageSrc={artistimg?.medium}
-        items={props.stats.top_artists}
+        imageSrc={artists[0]?.item.image?.medium}
+        items={artists}
         getLabel={(a) => a.name}
         includeTime={props.includeTime}
       />
 
       <RewindTopItem
         title="Top Album"
-        imageSrc={albumimg?.medium}
-        items={props.stats.top_albums}
+        imageSrc={albums[0]?.item.image?.medium}
+        items={albums}
         getLabel={(a) => a.title}
         includeTime={props.includeTime}
       />
 
       <RewindTopItem
         title="Top Track"
-        imageSrc={trackimg?.medium}
-        items={props.stats.top_tracks}
+        imageSrc={tracks[0]?.item.image?.medium}
+        items={tracks}
         getLabel={(t) => t.title}
         includeTime={props.includeTime}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-5">
-        <RewindStatText
-          figure={`${props.stats.minutes_listened}`}
-          text="Minutes"
-        />
+        {!weekly && (
+          <RewindStatText
+            figure={`${props.stats.minutes_listened}`}
+            text="Minutes"
+          />
+        )}
         <RewindStatText figure={`${props.stats.unique_tracks}`} text="Tracks" />
         <RewindStatText
           figure={`${props.stats.new_tracks}`}
@@ -80,10 +102,12 @@ export default function Rewind(props: Props) {
           figure={`${props.stats.new_albums}`}
           text="New albums"
         />
-        <RewindStatText
-          figure={`${props.stats.avg_plays_per_day.toFixed(1)}`}
-          text="Plays / day"
-        />
+        {!weekly && (
+          <RewindStatText
+            figure={`${props.stats.avg_plays_per_day.toFixed(1)}`}
+            text="Plays / day"
+          />
+        )}
         <RewindStatText
           figure={`${props.stats.unique_artists}`}
           text="Artists"

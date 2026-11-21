@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gabehf/koito/internal/db"
 	"github.com/gabehf/koito/internal/logger"
@@ -22,14 +23,44 @@ func SummaryHandler(store summaryHandlerStore) http.HandlerFunc {
 		l := logger.FromContext(ctx)
 		l.Debug().Msg("SummaryHandler: Received request to retrieve summary")
 		timeframe := TimeframeFromRequest(r)
+		var week rewindWeek
+		if query := r.URL.Query(); query.Has("week_start") {
+			var err error
+			week, err = resolveRewindWeek(query.Get("week_start"), time.Now(), timeframe.Timezone)
+			if err != nil {
+				utils.WriteError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			timeframe = week.timeframe(week.start, 7)
+		}
 
-		summary, err := summary.GenerateSummary(ctx, store, 1, timeframe, "")
+		stats, err := summary.GenerateSummary(ctx, store, 1, timeframe, "")
 		if err != nil {
 			l.Err(err).Int("userid", 1).Any("timeframe", timeframe).Msgf("SummaryHandler: Failed to generate summary")
 			utils.WriteError(w, "failed to generate summary", http.StatusInternalServerError)
 			return
 		}
 
-		utils.WriteJSON(w, http.StatusOK, summary)
+		if week.location == nil {
+			utils.WriteJSON(w, http.StatusOK, stats)
+			return
+		}
+
+		weekly, err := week.comparison(ctx, store)
+		if err != nil {
+			l.Err(err).Msg("SummaryHandler: Failed to count daily plays")
+			utils.WriteError(w, "failed to generate weekly comparison", http.StatusInternalServerError)
+			return
+		}
+		weekly.HourlyPlays, err = store.CountListensByHour(ctx, timeframe)
+		if err != nil {
+			l.Err(err).Msg("SummaryHandler: Failed to count hourly plays")
+			utils.WriteError(w, "failed to generate listening clock", http.StatusInternalServerError)
+			return
+		}
+		utils.WriteJSON(w, http.StatusOK, struct {
+			*summary.Summary
+			Weekly weeklyRewind `json:"weekly"`
+		}{stats, weekly})
 	}
 }

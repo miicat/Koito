@@ -74,6 +74,7 @@ type ListenStore interface {
 	SaveListen(ctx context.Context, opts SaveListenOpts) error
 	DeleteListen(ctx context.Context, trackId int32, listenedAt time.Time) error
 	CountListens(ctx context.Context, timeframe Timeframe) (int64, error)
+	CountListensByHour(ctx context.Context, timeframe Timeframe) ([24]int64, error)
 	CountListensToItem(ctx context.Context, opts TimeListenedOpts) (int64, error)
 	CountTimeListened(ctx context.Context, timeframe Timeframe) (int64, error)
 	CountTimeListenedToItem(ctx context.Context, opts TimeListenedOpts) (int64, error)

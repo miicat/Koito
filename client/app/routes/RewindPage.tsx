@@ -22,6 +22,19 @@ const months = [
   "December",
 ];
 
+const weekDateFormat = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function addDays(date: string, days: number): string {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + days);
+  return day.toISOString().slice(0, 10);
+}
+
 const parseParams = (
   params: URLSearchParams,
 ): { year: number; month?: number } => {
@@ -41,10 +54,32 @@ const parseParams = (
 };
 
 export async function clientLoader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const { year, month } = parseParams(url.searchParams);
+  const params = new URL(request.url).searchParams;
+  const weekStart = params.get("week_start");
+  if (weekStart !== null || (!params.has("year") && !params.has("month"))) {
+    const query = new URLSearchParams({ week_start: weekStart ?? "latest" });
+    const res = await fetch(`/apis/web/v1/summary?${query}`, {
+      signal: request.signal,
+    });
+    if (!res.ok) {
+      throw new Response(null, {
+        status: res.status,
+        statusText:
+          res.status === 400
+            ? "Invalid weekly Rewind date"
+            : "Failed to load weekly Rewind",
+      });
+    }
 
-  const res = await fetch(`/apis/web/v1/summary?year=${year}&month=${month}`);
+    const stats: RewindStats = await res.json();
+    stats.title = "Your Weekly Rewind";
+    return { stats };
+  }
+
+  const { year, month } = parseParams(params);
+  const res = await fetch(`/apis/web/v1/summary?year=${year}&month=${month}`, {
+    signal: request.signal,
+  });
   if (!res.ok) throw new Response("Failed to load summary", { status: 500 });
 
   const stats: RewindStats = await res.json();
@@ -57,33 +92,53 @@ export default function RewindPage() {
   const navigate = useNavigate();
   const { stats } = useLoaderData<{ stats: RewindStats }>();
   const { firstActivity } = useAppContext();
+  const weekly = stats.weekly;
 
-  const { year: loadedYear, month: loadedMonth } = parseParams(
+  const { year: loadedYear, month } = parseParams(
     new URLSearchParams(location.search),
   );
-
-  const [year, setYear] = useState(loadedYear);
-  const [month, setMonth] = useState(loadedMonth);
-  const [showYearly, setShowYearly] = useState(
-    !loadedMonth || loadedMonth === 0,
-  );
+  const [calendarView, setCalendarView] = useState<{
+    locationKey: string;
+    year: number;
+    showYearly: boolean;
+  }>();
+  const currentView =
+    calendarView?.locationKey === location.key ? calendarView : undefined;
+  const year = currentView?.year ?? loadedYear;
+  const showYearly = currentView?.showYearly ?? !month;
   const [showTime, setShowTime] = useState(false);
 
-  const updateParams = (updates: Record<string, string | null>) => {
-    const nextParams = new URLSearchParams(location.search);
-    for (const [key, val] of Object.entries(updates)) {
-      val !== null ? nextParams.set(key, val) : nextParams.delete(key);
-    }
-    navigate(`/rewind?${nextParams.toString()}`, { replace: false });
+  const navigateRewind = (params: Record<string, string>) => {
+    navigate(`/rewind?${new URLSearchParams(params)}`);
   };
 
   const navigateMonth = (newMonth: number) => {
-    setMonth(newMonth);
-    updateParams({ year: year.toString(), month: newMonth.toString() });
+    navigateRewind({ year: year.toString(), month: newMonth.toString() });
   };
 
   const navigateYear = (direction: "prev" | "next") => {
-    setYear(direction === "next" ? year + 1 : year - 1);
+    setCalendarView({
+      locationKey: location.key,
+      year: direction === "next" ? year + 1 : year - 1,
+      showYearly,
+    });
+  };
+
+  const selectCalendarView = (yearly: boolean) => {
+    if (!weekly) {
+      setCalendarView({ locationKey: location.key, year, showYearly: yearly });
+      return;
+    }
+    const now = new Date();
+    if (yearly) {
+      navigateRewind({ year: String(now.getFullYear() - 1) });
+    } else {
+      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      navigateRewind({
+        year: String(previousMonth.getFullYear()),
+        month: String(previousMonth.getMonth() + 1),
+      });
+    }
   };
 
   // month is 0-indexed (array index), matching JS Date convention
@@ -102,16 +157,26 @@ export default function RewindPage() {
   }
 
   const pgTitle = `${stats.title} - Koito`;
+  const weekRange =
+    weekly &&
+    weekDateFormat.formatRange(
+      new Date(`${weekly.start}T00:00:00Z`),
+      new Date(`${addDays(weekly.start, 6)}T00:00:00Z`),
+    );
 
   return (
     <div className="w-full min-h-screen">
       <title>{pgTitle}</title>
       <meta property="og:title" content={pgTitle} />
       <meta name="description" content={pgTitle} />
-      <div className="flex flex-col lg:flex-row items-center lg:items-start lg:mt-15 mt-5 gap-10 w-19/20 mx-auto px-5 md:px-10">
+      <div
+        className={`flex flex-col lg:flex-row items-center lg:items-start lg:mt-15 mt-5 w-19/20 mx-auto ${
+          weekly ? "gap-4 px-1 sm:gap-10 sm:px-5 md:px-10" : "gap-10 px-5 md:px-10"
+        }`}
+      >
         <div className="flex flex-col items-start gap-4">
           <div className="flex flex-col items-center gap-4 mt-4 sm:mt-14 w-[250px] mx-auto">
-            {!showYearly && (
+            {!weekly && !showYearly && (
               <>
                 <div className="flex items-center gap-6 justify-around">
                   <button
@@ -157,7 +222,7 @@ export default function RewindPage() {
                 </div>
               </>
             )}
-            {showYearly && firstActivity && (
+            {!weekly && showYearly && firstActivity && (
               <div className="grid grid-cols-2 gap-2">
                 {Array.from(
                   {
@@ -171,11 +236,7 @@ export default function RewindPage() {
                     className={`px-10 py-2 rounded-(--border-radius) hover:bg-(--color-bg-secondary)
                       ${y === year && !month ? "card" : "border-1 border-(--color-bg)"}
                     `}
-                    onClick={() => {
-                      setYear(y);
-                      setMonth(undefined);
-                      updateParams({ year: y.toString(), month: null });
-                    }}
+                    onClick={() => navigateRewind({ year: y.toString() })}
                     disabled={(!month || month === 0) && y === year}
                   >
                     {y}
@@ -194,23 +255,68 @@ export default function RewindPage() {
             </div>
           </div>
         </div>
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex justify-around w-2/3 mb-4">
+        <div
+          className={`flex flex-col items-center gap-4 ${weekly ? "w-full min-w-0 max-w-3xl" : ""}`}
+        >
+          <div
+            aria-label="Rewind period"
+            role="group"
+            className="flex justify-around gap-4 mb-4 w-full max-w-sm"
+          >
             <button
               className="period-selector"
-              onClick={() => setShowYearly(false)}
-              disabled={!showYearly}
+              onClick={() => navigateRewind({ week_start: "latest" })}
+              aria-pressed={!!weekly}
+              disabled={!!weekly}
+            >
+              WEEKLY
+            </button>
+            <button
+              className="period-selector"
+              onClick={() => selectCalendarView(false)}
+              aria-pressed={!weekly && !showYearly}
+              disabled={!weekly && !showYearly}
             >
               MONTHLY
             </button>
             <button
               className="period-selector"
-              onClick={() => setShowYearly(true)}
-              disabled={showYearly}
+              onClick={() => selectCalendarView(true)}
+              aria-pressed={!weekly && showYearly}
+              disabled={!weekly && showYearly}
             >
               YEARLY
             </button>
           </div>
+          {weekly && (
+            <div className="flex items-center gap-3">
+              <button
+                aria-label="Previous week"
+                className="p-2 rounded-(--border-radius) enabled:hover:bg-(--color-bg-secondary) disabled:opacity-35"
+                onClick={() =>
+                  navigateRewind({ week_start: addDays(weekly.start, -7) })
+                }
+                disabled={
+                  firstActivity && firstActivity.getTime() >= Date.parse(weekly.starts_at)
+                }
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <p className="text-center font-medium" aria-live="polite">
+                {weekRange}
+              </p>
+              <button
+                aria-label="Next week"
+                className="p-2 rounded-(--border-radius) enabled:hover:bg-(--color-bg-secondary) disabled:opacity-35"
+                onClick={() =>
+                  navigateRewind({ week_start: addDays(weekly.start, 7) })
+                }
+                disabled={weekly.start === weekly.latest_start}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
           {stats && <Rewind stats={stats} includeTime={showTime} />}
         </div>
       </div>
