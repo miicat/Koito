@@ -18,6 +18,17 @@ export default function Footer() {
             <ExternalLinkIcon className="inline mb-1" size={14} />
           </a>
         </li>
+        <li>
+          Fork of{" "}
+          <a
+            href="https://github.com/gabehf/koito"
+            target="_blank"
+            className="link-underline"
+          >
+            gabehf/koito{" "}
+            <ExternalLinkIcon className="inline mb-1" size={14} />
+          </a>
+        </li>
       </ul>
     </div>
   );
