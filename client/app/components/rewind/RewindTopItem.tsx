@@ -1,5 +1,6 @@
 import type { Ranked } from "api/api";
 import Image from "../primitives/Image";
+import { formatListeningTime, formatPlays } from "./format";
 
 type TopItemProps<T> = {
   title: string;
@@ -7,6 +8,7 @@ type TopItemProps<T> = {
   items: Ranked<T>[];
   getLabel: (item: T) => string;
   includeTime?: boolean;
+  compact?: boolean;
 };
 
 export function RewindTopItem<
@@ -15,10 +17,26 @@ export function RewindTopItem<
     listen_count: number;
     time_listened: number;
   },
->({ title, imageSrc, items, getLabel, includeTime }: TopItemProps<T>) {
+>({ title, imageSrc, items, getLabel, includeTime, compact }: TopItemProps<T>) {
   const [top, ...rest] = items;
 
   if (!top) return null;
+
+  if (compact) {
+    return (
+      <section className="flex min-w-0 items-center gap-3 rounded-(--border-radius) border border-(--color-bg-tertiary) p-3 sm:flex-col sm:items-start">
+        {imageSrc && <Image size={56} src={imageSrc} alt="" className="shrink-0" />}
+        <div className="min-w-0">
+          <h3 className="text-sm color-fg-secondary">{title}</h3>
+          <p className="font-semibold wrap-break-word">{getLabel(top.item)}</p>
+          <p className="text-sm color-fg-secondary">
+            {formatPlays(top.item.listen_count)}
+            {includeTime && ` · ${formatListeningTime(Math.floor(top.item.time_listened / 60))}`}
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   const titlesizeclass =
     getLabel(top.item).length > 28

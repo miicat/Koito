@@ -33,8 +33,7 @@ type listenCounter interface {
 }
 
 func resolveRewindWeek(value string, now time.Time, location *time.Location) (rewindWeek, error) {
-	year, month, day := now.In(location).Date()
-	today := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	today := localCalendarDate(now, location)
 	daysSinceFriday := (int(today.Weekday()) - int(time.Friday) + 7) % 7
 	latest := today.AddDate(0, 0, -daysSinceFriday-7)
 	week := rewindWeek{start: latest, latestStart: latest, location: location}
@@ -53,30 +52,8 @@ func resolveRewindWeek(value string, now time.Time, location *time.Location) (re
 	return week, nil
 }
 
-// Find the first instant of the calendar day, including when a timezone skips
-// or repeats midnight. The search starts before midnight in any timezone.
-func localDayStart(day time.Time, location *time.Location) time.Time {
-	for probe := day.Add(-24 * time.Hour).In(location); ; {
-		_, offset := probe.Zone()
-		start := day.Add(-time.Duration(offset) * time.Second)
-		if start.Before(probe) {
-			start = probe
-		}
-		_, zoneEnd := probe.ZoneBounds()
-		if zoneEnd.IsZero() || start.Before(zoneEnd) {
-			return start.In(location)
-		}
-		probe = zoneEnd
-	}
-}
-
 func (week rewindWeek) timeframe(day time.Time, days int) db.Timeframe {
-	return db.Timeframe{
-		From: localDayStart(day, week.location),
-		// Listen counts use inclusive Unix-second bounds.
-		To:       localDayStart(day.AddDate(0, 0, days), week.location).Add(-time.Second),
-		Timezone: week.location,
-	}
+	return rewindTimeframe(day, days, week.location)
 }
 
 func (week rewindWeek) comparison(ctx context.Context, store listenCounter) (weeklyRewind, error) {

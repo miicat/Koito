@@ -122,7 +122,7 @@ func (s *Sqlite) GetListensPaginated(ctx context.Context, opts db.GetItemsOpts) 
 			FROM listens l
 			JOIN tracks_with_title t ON l.track_id = t.id
 			WHERE l.listened_at BETWEEN ? AND ?
-			ORDER BY l.listened_at DESC LIMIT ? OFFSET ?`,
+			ORDER BY l.listened_at DESC, l.track_id LIMIT ? OFFSET ?`,
 			t1.Unix(), t2.Unix(), opts.Limit, offset,
 		)
 	}
