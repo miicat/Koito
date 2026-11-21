@@ -115,6 +115,4 @@ jobs:
           tags: |
             gabehf/koito:dev
             gabehf/koito:dev-${{ github.sha }}
-          build-args: |
-            KOITO_VERSION=dev
           platforms: linux/amd64,linux/arm64

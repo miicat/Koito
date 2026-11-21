@@ -2,24 +2,34 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
-	"log"
 
 	"github.com/gabehf/koito/engine"
 )
 
-var Version = "dev"
+const defaultVersion = "v0.4.0"
+
+var Version = defaultVersion
 
 func main() {
+	version := Version
+	if version == "" {
+		version = defaultVersion
+	}
+	if !strings.HasSuffix(version, "-miicat") {
+		version += "-miicat"
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "reset-password" {
-		if err := engine.ResetPassword(readEnvOrFile, os.Stdout, Version); err != nil {
+		if err := engine.ResetPassword(readEnvOrFile, os.Stdout, version); err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err)
 			os.Exit(1)
 		}
 		return
 	}
-	if err := engine.Run(readEnvOrFile, os.Stdout, Version); err != nil {
+	if err := engine.Run(readEnvOrFile, os.Stdout, version); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}

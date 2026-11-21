@@ -1,6 +1,6 @@
 {
   "name": "koito",
-  "version": "dev",
+  "version": "v0.4.0",
   "private": true,
   "type": "module",
   "scripts": {

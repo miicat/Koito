@@ -3,6 +3,13 @@ import { createContext, useContext, useEffect, useState } from "react";
 import pkg from "../../package.json";
 import semver from "semver";
 
+const versionSuffix = "-miicat";
+const buildVersion = import.meta.env.VITE_KOITO_VERSION || pkg.version;
+const baseVersion = buildVersion.endsWith(versionSuffix)
+  ? buildVersion.slice(0, -versionSuffix.length)
+  : buildVersion;
+const currentVersion = `${baseVersion}${versionSuffix}`;
+
 function isNewerVersion(current: string, latest: string): boolean {
   return semver.gt(latest, current);
 }
@@ -46,8 +53,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setUser({ ...user, username: value });
   };
 
-  const currentVersion = import.meta.env.VITE_KOITO_VERSION || pkg.version;
-
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
   const [firstActivity, setFirstActivity] = useState<Date | undefined>();
 
@@ -85,7 +90,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     fetch("https://api.github.com/repos/gabehf/koito/releases/latest")
       .then((r) => r.json())
       .then((r) => {
-        setUpdateAvailable(isNewerVersion(currentVersion, r.tag_name));
+        setUpdateAvailable(isNewerVersion(baseVersion, r.tag_name));
       })
       .catch((err) => console.log(err));
   }, []);
