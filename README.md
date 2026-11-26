@@ -22,6 +22,14 @@ It supports relaying to other compatible scrobblers, so you can try it safely wi
 
 ## What this fork adds
 
+### Daily Rewind
+
+On the Rewind page, select **Daily** to see your latest completed day. Use the arrows to browse past days or pick a date to jump to it.
+
+- 📊 **Daily stats.** See total plays, known listening time, and unique tracks, and compare your play count with the previous day.
+- 🕒 **Listening Clock.** Select an hour to see the tracks you played and when you played them.
+- 🎧 **Top and first-time listens.** See your most-played artists, albums, and tracks, plus how many tracks and artists you heard for the first time in your Koito history.
+
 ### Weekly Rewind
 
 On the Rewind page, select **Weekly** to see your latest completed week.
@@ -31,6 +39,10 @@ On the Rewind page, select **Weekly** to see your latest completed week.
 - 📊 **Daily plays.** Compare each weekday and the weekly total with the previous week.
 - 🕒 **Listening Clock.** Explore plays by hour of day and see when you listened most.
 - 📝 **Quick Facts.** See your known listening time, average plays per day, and busiest day.
+
+### Bug fixes
+
+- Fixed duplicate track creation when a listen submitted by artist and title matches an existing track’s secondary alias. See [upstream issue #369](https://github.com/gabehf/Koito/issues/369).
 
 ## Features
 
