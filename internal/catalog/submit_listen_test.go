@@ -610,20 +610,27 @@ func TestSubmitListen_MatchNoMbzIDs(t *testing.T) {
 }
 
 func TestSubmitListen_MatchTrackAliasNoMbzIDs(t *testing.T) {
-	const alias = "Tokyo Calling (Alternate Title)"
+	const (
+		alias      = "Tokyo Calling (Alternate Title)"
+		albumTitle = "AG! Calling"
+	)
 
 	for _, tc := range []struct {
 		name         string
+		releaseTitle string
 		primaryMatch bool
 	}{
-		{name: "secondary alias"},
-		{name: "primary title takes precedence", primaryMatch: true},
+		{name: "secondary track alias", releaseTitle: albumTitle},
+		{name: "secondary track and album aliases", releaseTitle: alias},
+		{name: "secondary aliases with no release title"},
+		{name: "primary track title takes precedence", releaseTitle: albumTitle, primaryMatch: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newTestDB()
 			setupTestDataSansMbzIDs(store, t)
 			ctx := context.Background()
 			require.NoError(t, store.SaveTrackAliases(ctx, 1, []string{alias}, "Manual"))
+			require.NoError(t, store.SaveAlbumAliases(ctx, 1, []string{alias}, "Manual"))
 
 			wantID, wantTitle, wantCount := int32(1), "Tokyo Calling", 1
 			if tc.primaryMatch {
@@ -641,7 +648,7 @@ func TestSubmitListen_MatchTrackAliasNoMbzIDs(t *testing.T) {
 				ArtistNames:  []string{"ATARASHII GAKKO!"},
 				Artist:       "ATARASHII GAKKO!",
 				TrackTitle:   alias,
-				ReleaseTitle: "AG! Calling",
+				ReleaseTitle: tc.releaseTitle,
 				Time:         time.Now(),
 				UserID:       1,
 			}))
@@ -658,6 +665,9 @@ func TestSubmitListen_MatchTrackAliasNoMbzIDs(t *testing.T) {
 			count, err := store.Count(`SELECT COUNT(*) FROM tracks`)
 			require.NoError(t, err)
 			assert.Equal(t, wantCount, count)
+			count, err = store.Count(`SELECT COUNT(*) FROM releases`)
+			require.NoError(t, err)
+			assert.Equal(t, 1, count)
 		})
 	}
 }

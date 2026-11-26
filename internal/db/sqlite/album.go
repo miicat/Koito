@@ -28,12 +28,7 @@ func (s *Sqlite) GetAlbum(ctx context.Context, opts db.GetAlbumOpts) (*models.Al
 		}
 		opts.ID = id
 	} else if opts.ArtistID != 0 && opts.Title != "" {
-		var id int32
-		err := s.db.QueryRowContext(ctx, `
-			SELECT r.id FROM releases_with_title r
-			JOIN artist_releases ar ON r.id = ar.release_id
-			WHERE r.title = ? AND ar.artist_id = ? LIMIT 1`,
-			opts.Title, opts.ArtistID).Scan(&id)
+		id, err := s.releaseByArtistAndTitles(ctx, opts.ArtistID, []string{opts.Title}, false)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("GetAlbum: by artist+title: %w", db.ErrNotFound)
 		}
@@ -126,9 +121,12 @@ func (s *Sqlite) releaseByArtistAndTitles(ctx context.Context, artistID int32, t
 		noMbz = " AND r.musicbrainz_id IS NULL"
 	}
 	query := fmt.Sprintf(`
-		SELECT r.id FROM releases_with_title r
+		SELECT r.id FROM releases r
+		JOIN release_aliases ra ON ra.release_id = r.id
 		JOIN artist_releases ar ON r.id = ar.release_id
-		WHERE r.title IN (%s) AND ar.artist_id = ?%s LIMIT 1`, placeholders, noMbz)
+		WHERE ra.alias IN (%s) AND ar.artist_id = ?%s
+		ORDER BY ra.is_primary DESC, r.id
+		LIMIT 1`, placeholders, noMbz)
 
 	args := make([]any, len(titles)+1)
 	for i, t := range titles {
