@@ -9,7 +9,7 @@ import (
 	"github.com/gabehf/koito/engine"
 )
 
-const defaultVersion = "v0.4.0"
+const defaultVersion = "v0.4.1"
 
 var Version = defaultVersion
 
