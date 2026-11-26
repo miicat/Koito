@@ -95,7 +95,7 @@ func (s *Sqlite) getTrackByID(ctx context.Context, id int32) (*models.Track, err
 	return &track, nil
 }
 
-// trackByTrackInfo finds a track by title + release + all artist IDs. Mirrors GetTrackByTrackInfo.
+// trackByTrackInfo matches a title alias on the release with all requested artists.
 func (s *Sqlite) trackByTrackInfo(ctx context.Context, title string, releaseID int32, artistIDs []int32) (int32, error) {
 	if len(artistIDs) == 0 {
 		return 0, errors.New("trackByTrackInfo: no artist IDs provided")
@@ -103,11 +103,14 @@ func (s *Sqlite) trackByTrackInfo(ctx context.Context, title string, releaseID i
 	placeholders := strings.Repeat("?,", len(artistIDs))
 	placeholders = placeholders[:len(placeholders)-1]
 	query := fmt.Sprintf(`
-		SELECT t.id FROM tracks_with_title t
+		SELECT t.id FROM tracks t
+		JOIN track_aliases ta ON ta.track_id = t.id
 		JOIN artist_tracks at2 ON at2.track_id = t.id
-		WHERE t.title = ? AND t.release_id = ? AND at2.artist_id IN (%s)
-		GROUP BY t.id
-		HAVING COUNT(DISTINCT at2.artist_id) = ?`, placeholders)
+		WHERE ta.alias = ? AND t.release_id = ? AND at2.artist_id IN (%s)
+		GROUP BY t.id, ta.is_primary
+		HAVING COUNT(DISTINCT at2.artist_id) = ?
+		ORDER BY ta.is_primary DESC, t.id
+		LIMIT 1`, placeholders)
 
 	args := make([]any, 2+len(artistIDs)+1)
 	args[0] = title

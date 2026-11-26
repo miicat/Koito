@@ -609,6 +609,59 @@ func TestSubmitListen_MatchNoMbzIDs(t *testing.T) {
 	assert.Equal(t, 1, count, "duplicate track created or has been associated with fake musicbrainz id")
 }
 
+func TestSubmitListen_MatchTrackAliasNoMbzIDs(t *testing.T) {
+	const alias = "Tokyo Calling (Alternate Title)"
+
+	for _, tc := range []struct {
+		name         string
+		primaryMatch bool
+	}{
+		{name: "secondary alias"},
+		{name: "primary title takes precedence", primaryMatch: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newTestDB()
+			setupTestDataSansMbzIDs(store, t)
+			ctx := context.Background()
+			require.NoError(t, store.SaveTrackAliases(ctx, 1, []string{alias}, "Manual"))
+
+			wantID, wantTitle, wantCount := int32(1), "Tokyo Calling", 1
+			if tc.primaryMatch {
+				track, err := store.SaveTrack(ctx, db.SaveTrackOpts{
+					Title:     alias,
+					AlbumID:   1,
+					ArtistIDs: []int32{1},
+				})
+				require.NoError(t, err)
+				wantID, wantTitle, wantCount = track.ID, alias, 2
+			}
+
+			require.NoError(t, catalog.SubmitListen(ctx, store, catalog.SubmitListenOpts{
+				MbzCaller:    &mbz.MbzMockCaller{},
+				ArtistNames:  []string{"ATARASHII GAKKO!"},
+				Artist:       "ATARASHII GAKKO!",
+				TrackTitle:   alias,
+				ReleaseTitle: "AG! Calling",
+				Time:         time.Now(),
+				UserID:       1,
+			}))
+
+			listens, err := store.GetListensPaginated(ctx, db.GetItemsOpts{
+				Page:      1,
+				Timeframe: db.Timeframe{Period: db.PeriodAllTime},
+			})
+			require.NoError(t, err)
+			require.Len(t, listens.Items, 1)
+			assert.Equal(t, wantID, listens.Items[0].Track.ID)
+			assert.Equal(t, wantTitle, listens.Items[0].Track.Title)
+
+			count, err := store.Count(`SELECT COUNT(*) FROM tracks`)
+			require.NoError(t, err)
+			assert.Equal(t, wantCount, count)
+		})
+	}
+}
+
 func TestSubmitListen_UpdateTrackDuration(t *testing.T) {
 	store := newTestDB()
 	setupTestDataSansMbzIDs(store, t)
